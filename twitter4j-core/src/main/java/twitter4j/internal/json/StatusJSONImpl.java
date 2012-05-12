@@ -66,6 +66,8 @@ import static twitter4j.internal.util.z_T4JInternalParseUtil.getUnescapedString;
     private MediaEntity[] mediaEntities;
     private Status myRetweetedStatus;
 
+    private JSONObject jsonCached;
+
     /*package*/StatusJSONImpl(HttpResponse res, Configuration conf) throws TwitterException {
         super(res);
         JSONObject json = res.asJSONObject();
@@ -74,11 +76,15 @@ import static twitter4j.internal.util.z_T4JInternalParseUtil.getUnescapedString;
             DataObjectFactoryUtil.clearThreadLocalMap();
             DataObjectFactoryUtil.registerJSONObject(this, json);
         }
+
+        jsonCached = json;
     }
 
     /*package*/ StatusJSONImpl(JSONObject json) throws TwitterException {
         super();
         init(json);
+
+        jsonCached = json;
     }
 
     private void init(JSONObject json) throws TwitterException {
@@ -423,6 +429,8 @@ import static twitter4j.internal.util.z_T4JInternalParseUtil.getUnescapedString;
 
     @Override
     public String toString() {
+        return jsonCached.toString();
+        /*
         return "StatusJSONImpl{" +
                 "createdAt=" + createdAt +
                 ", id=" + id +
@@ -445,5 +453,6 @@ import static twitter4j.internal.util.z_T4JInternalParseUtil.getUnescapedString;
                 ", hashtagEntities=" + (hashtagEntities == null ? null : Arrays.asList(hashtagEntities)) +
                 ", user=" + user +
                 '}';
+                */
     }
 }
