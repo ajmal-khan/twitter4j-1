@@ -1,6 +1,12 @@
 package twitter4j.examples.pyongjoo;
 
-import java.util.Random;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
 
 import twitter4j.conf.Configuration;
 import twitter4j.conf.ConfigurationBuilder;
@@ -74,20 +80,58 @@ public class CustomConfig {
 			"40Oal8PACwOm23jLypObfuo8KBYFseQS5wv7cgZl8"
 		}
 	};
+	
+	final private static String tempFile = "custom_auth_round_robin_key";
 
 	public static Configuration getConfOnRandomlyDistributedKey() {
 
 		ConfigurationBuilder cb = new ConfigurationBuilder();
 		
-		Random rand = new Random();
-		int r = rand.nextInt(tokens.length);
-		String[] token = tokens[r];
+		int round_robin = 0;
+		
+		// Get the round robin key
+		try {
+			BufferedReader input =  new BufferedReader(new FileReader(tempFile));
+			
+			String line = null;
+			
+	        while (( line = input.readLine()) != null){
+	        	round_robin = Integer.valueOf(line);
+	        }
+	        
+		} catch (FileNotFoundException e) {
+//			e.printStackTrace();
+			// This happens at the first time
+		} catch (NumberFormatException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		String[] token = tokens[round_robin];
+		
+		
+		// Write down the next round robin key
+		Writer output;
+		try {
+			output = new BufferedWriter(new FileWriter(tempFile));
+			
+			output.write((round_robin + 1) % tokens.length + "\n");
+			
+			output.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
 		cb.setDebugEnabled(true)
 		  .setOAuthConsumerKey(token[0])
 		  .setOAuthConsumerSecret(token[1])
 		  .setOAuthAccessToken(token[2])
 		  .setOAuthAccessTokenSecret(token[3]);
+		
 		return cb.build();
 	}
 }
