@@ -81,7 +81,7 @@ public class GetUserTimeline {
 
 				for (Status status : statuses) {
 					out.write(status.toString() + '\n');
-					System.out.println(status.getUser().getScreenName() + "tweets written.");
+//					System.out.println(status.getUser().getScreenName() + "tweets written.");
 				}
 			} catch (TwitterException te) {
 				te.printStackTrace();
