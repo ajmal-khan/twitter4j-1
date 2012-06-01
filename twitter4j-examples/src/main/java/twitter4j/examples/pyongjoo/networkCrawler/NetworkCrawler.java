@@ -56,7 +56,7 @@ public class NetworkCrawler {
 			System.exit(1);
 		}
 		
-		NetworkCrawler crawler = new NetworkCrawler(args[0], 0);
+		NetworkCrawler crawler = new NetworkCrawler(args[0], 2);
 		
 		// Add seed users		
 		BufferedReader in = new BufferedReader(new FileReader(args[1]));
