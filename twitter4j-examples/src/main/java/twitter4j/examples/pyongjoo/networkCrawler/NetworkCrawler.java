@@ -3,12 +3,15 @@ package twitter4j.examples.pyongjoo.networkCrawler;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -22,39 +25,90 @@ import twitter4j.TwitterFactory;
 import twitter4j.examples.pyongjoo.CustomConfig;
 
 
+/** Crawl Twitter network from a set of seed users.
+ * 
+ * Input Parameters when Running the main file
+ * 
+ * @param logFileName Collected Edge data are saved to this file.
+ * @param seedFile Network exploration starts from the set of users contained in this file.
+ * 
+ * 
+ * About Seed File
+ * 
+ * Seed file is supposed to include a single user_id in each line. Lines are separated
+ * by new line characters.
+ * 
+ * @author yongjoo
+ *
+ */
 public class NetworkCrawler {
 	
 	private String logFileName = null;
+	
+	private int depthLimit = 2;
+	
+	final private List<Long> seedList;
 
-	public static void main(String[] args) throws NetworkCrawlerException  {
-		if (args.length < 1) {
-			System.err.println("Usage: java NetworkCrawler [log file name]");
+	public static void main(String[] args) throws NetworkCrawlerException, IOException  {
+		if (args.length < 2) {
+			System.err.println("Usage: java NetworkCrawler [log file name] [seed file]");
 			System.exit(1);
 		}
 		
-		NetworkCrawler crawler = new NetworkCrawler(args[0]);
+		NetworkCrawler crawler = new NetworkCrawler(args[0], 0);
 		
+		// Add seed users		
+		BufferedReader in = new BufferedReader(new FileReader(args[1]));
+		
+		String line;
+		
+		while ((line = in.readLine()) != null) {
+			Long userId = new Long(line);
+			crawler.addToSeedList(userId);
+		}
+		
+		// Run the crawler
 		crawler.run();
 	}
 	
 	
 	public NetworkCrawler(String filename) {
 		logFileName = filename;
+		seedList = new ArrayList<Long>();
 	}
 	
 	
-	public void run() throws NetworkCrawlerException {
+	public NetworkCrawler(String filename, int depthLimit) {
+		logFileName = filename;
+		this.depthLimit = depthLimit;
+		seedList = new ArrayList<Long>();
+	}
+	
+	
+	public void addToSeedList(long userId) {
+		seedList.add(userId);
+	}
+	
+	
+	public void addToSeedList(Iterable<Long> list) {
+		for (long user_id : list) {
+			addToSeedList(user_id);
+		}
+	}
+	
+	
+	public void run() throws NetworkCrawlerException, IOException {
 		if (logFileName == null) {
 			throw new NetworkCrawlerException("Log file is not set.");
 		}
 		
-		ArrayList<Long> initialGuys = new ArrayList<Long>();
-		initialGuys.add(new Long(24642133));
-		
 		Manager manager = new Manager();
 		
-		manager.setDepthLimit(1);
+		manager.setDepthLimit(depthLimit);
+		manager.setInitialSeed(seedList);
+		manager.setLogFileName(logFileName);
 		
+		manager.run();
 	}
 }
 
@@ -103,8 +157,7 @@ class Manager {
 	 */
 	public void setInitialSeed(Iterable<Long> userIdList) {
 		for (long userId : userIdList) {
-			taskList.offer(new Task(0, userId));
-			explored.add(new Long(userId));
+			addToExploreList(userId, 0);
 		}
 	}
 	
@@ -125,6 +178,28 @@ class Manager {
 		depthLimit = limit;
 	}
 	
+	
+	/** Add to the list to explore in the future.
+	 * 
+	 * This method performs the check if the node to be added has been visited
+	 * in the past, which is to prevent redundant explorations.
+	 * 
+	 * @param userId
+	 * @param nextDepth
+	 */
+	protected void addToExploreList(long userId, int nextDepth) {
+		if (!explored.contains(userId)) {
+			Task nt = new Task(nextDepth, userId);
+			
+			taskList.offer(nt);
+			explored.add(userId);
+		}
+		else {
+//			System.out.println("Already explored: " + userId);
+		}
+	}
+	
+	
 	/** Start to manage the job, and stops if it reaches the depthLimit.
 	 * @throws IOException 
 	 */
@@ -143,7 +218,7 @@ class Manager {
 				ArrayList<Long> neighbor = worker.getNeighbor(t);
 				
 				// log the retrieved neighbor
-				logger.logEdges(t.getUserId(), neighbor);
+				logger.logEdges(t.getUserId(), neighbor, t.getDepth());
 				
 				// generate the next depth of task
 				// unless exceeded the depth limit.
@@ -153,23 +228,20 @@ class Manager {
 					for (long n : neighbor) {
 						// create a new task only if the node is not yet scheduled
 						// to explore.
-						if (!explored.contains(n)) {
-							Task nt = new Task(nextDepth, n);
-							
-							taskList.offer(nt);
-							explored.add(n);
-						}
+						addToExploreList(n, nextDepth);
 					}
 				}
 				
 			} catch (FollowingLimitExceedException e) {
-				e.printStackTrace();
+				System.out.println("Following Limit Exceed: " + e.getUserId());
 			} catch (FollowerLimitExceedException e) {
-				e.printStackTrace();
+				System.out.println("Follower Limit Exceed: " + e.getUserId());
 			}
 		}
 		
 		rqFactory.stop();
+		
+		logger.close();
 	}
 }
 
@@ -182,14 +254,16 @@ class Logger {
 		out = new BufferedWriter(new FileWriter(filename, false));
 	}
 
-	public void logEdges(long userId, Iterable<Long> neighbor) throws IOException {
-		// TODO
+	public void logEdges(long userId, Iterable<Long> neighbor, int depth) throws IOException {
+		System.out.println("Retrieved the neighbor of user_id: " + userId + ", depth: " + depth);
+		
 		for (long n : neighbor) {
+//			System.out.println(userId + ", " + n);
 			out.write(userId + "," + n + "\n");
 		}
 	}
 	
-	public void clsoe() throws IOException {
+	public void close() throws IOException {
 		out.close();
 	}
 }
@@ -234,13 +308,13 @@ class Worker {
 	 * We think a user who's followed more than the limit is a sort of celebrity,
 	 * and will discard those users in the final network constructed.
 	 */
-	final int followerLimit = 1000;
+	final int followerLimit = 2000;
 	
 	/**
 	 * We think a user who's following more than the limit is a sort of celebrity,
 	 * and will discard those users in the final network constructed.
 	 */
-	final int followingLimit = 1000;
+	final int followingLimit = 2000;
 	
 	
 	public Worker(ResourceQueue q) {
