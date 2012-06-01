@@ -3,7 +3,14 @@ package twitter4j.examples.pyongjoo.networkCrawler;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -16,15 +23,38 @@ import twitter4j.examples.pyongjoo.CustomConfig;
 
 
 public class NetworkCrawler {
+	
+	private String logFileName = null;
 
-	public static void main(String[] args)  {
-		NetworkCrawler crawler = new NetworkCrawler();
+	public static void main(String[] args) throws NetworkCrawlerException  {
+		if (args.length < 1) {
+			System.err.println("Usage: java NetworkCrawler [log file name]");
+			System.exit(1);
+		}
+		
+		NetworkCrawler crawler = new NetworkCrawler(args[0]);
 		
 		crawler.run();
 	}
 	
-	public void run() {
-		System.out.println("hello world");
+	
+	public NetworkCrawler(String filename) {
+		logFileName = filename;
+	}
+	
+	
+	public void run() throws NetworkCrawlerException {
+		if (logFileName == null) {
+			throw new NetworkCrawlerException("Log file is not set.");
+		}
+		
+		ArrayList<Long> initialGuys = new ArrayList<Long>();
+		initialGuys.add(new Long(24642133));
+		
+		Manager manager = new Manager();
+		
+		manager.setDepthLimit(1);
+		
 	}
 }
 
@@ -39,11 +69,133 @@ public class NetworkCrawler {
  *
  */
 class Manager {
+	/**
+	 * Manager has its own task list that he manages.
+	 */
+	final Queue<Task> taskList;
 	
+	/**
+	 * Remember user_id that's already explored.
+	 * 
+	 * Nodes that are scheduled to explore in the future (i.e., once they have been added
+	 * to the taskList), those nodes are also added to this set.
+	 */
+	final Set<Long> explored;
+	
+	/** Specifies the limit to explore.
+	 * 
+	 * The depth of the root is 0, and the depth increases by one as we explore one more.
+	 * 
+	 * For example, depthLimit being 0 means that we only explore the neighbors of the roots. 
+	 */
+	private int depthLimit = 2;
+	
+	private String logFileName; 
+	
+	public Manager() {
+		taskList = new LinkedList<Task>();
+		explored = new HashSet<Long>();
+	}
+	
+	/**
+	 * This method is required to be called to start the work.
+	 * @param userIdList
+	 */
+	public void setInitialSeed(Iterable<Long> userIdList) {
+		for (long userId : userIdList) {
+			taskList.offer(new Task(0, userId));
+			explored.add(new Long(userId));
+		}
+	}
+	
+	/** Required to call before calling the 'run' method.
+	 * 
+	 * The absolute path is preferred to avoid the confusion.
+	 * 
+	 * @param filename
+	 */
+	public void setLogFileName(String filename) {
+		logFileName = filename;
+	}
+	
+	/** Optional
+	 * @param limit
+	 */
+	public void setDepthLimit(int limit) {
+		depthLimit = limit;
+	}
+	
+	/** Start to manage the job, and stops if it reaches the depthLimit.
+	 * @throws IOException 
+	 */
+	public void run() throws IOException {
+		ResourceQueueFactory rqFactory = new ResourceQueueFactory();
+		ResourceQueue rq = rqFactory.getResourceQueue();	// resource queue is periodically added a resource token.
+		
+		Logger logger = new Logger(logFileName);
+		
+		while (taskList.size() > 0) {
+			Task t = taskList.remove();
+			
+			Worker worker = new Worker(rq);
+			
+			try {
+				ArrayList<Long> neighbor = worker.getNeighbor(t);
+				
+				// log the retrieved neighbor
+				logger.logEdges(t.getUserId(), neighbor);
+				
+				// generate the next depth of task
+				// unless exceeded the depth limit.
+				if (t.getDepth() < depthLimit) {
+					int nextDepth = t.getDepth() + 1;
+					
+					for (long n : neighbor) {
+						// create a new task only if the node is not yet scheduled
+						// to explore.
+						if (!explored.contains(n)) {
+							Task nt = new Task(nextDepth, n);
+							
+							taskList.offer(nt);
+							explored.add(n);
+						}
+					}
+				}
+				
+			} catch (FollowingLimitExceedException e) {
+				e.printStackTrace();
+			} catch (FollowerLimitExceedException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		rqFactory.stop();
+	}
 }
 
 
-/** A unit to define a entity to work on
+class Logger {
+	
+	final BufferedWriter out;
+	
+	public Logger(String filename) throws IOException {
+		out = new BufferedWriter(new FileWriter(filename, false));
+	}
+
+	public void logEdges(long userId, Iterable<Long> neighbor) throws IOException {
+		// TODO
+		for (long n : neighbor) {
+			out.write(userId + "," + n + "\n");
+		}
+	}
+	
+	public void clsoe() throws IOException {
+		out.close();
+	}
+}
+
+
+/** A unit to define an entity to work on.
  * 
  * Includes information that a worker needs to know.
  * 
@@ -93,6 +245,11 @@ class Worker {
 	
 	public Worker(ResourceQueue q) {
 		rq = q;
+	}
+	
+	
+	public ArrayList<Long> getNeighbor(Task task) throws FollowingLimitExceedException, FollowerLimitExceedException {
+		return getNeighbor(task.getUserId());
 	}
 	
 	
@@ -201,12 +358,16 @@ class Worker {
 
 /** Convenient class to create a blocking factory used to manage Twitter api call rate limits
  * 
+ * Resource queue is periodically added a resource token by the factory.
+ * 
  * @author yongjoo
  *
  */
 class ResourceQueueFactory {
 	
 	private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+	
+	private long period = 1;
 	
 	public ResourceQueue getResourceQueue() {
 		final ResourceQueue q = new ResourceQueue(100);
@@ -215,7 +376,7 @@ class ResourceQueueFactory {
 			public void run() {
 				q.offer(new ResourceToken());
 			}
-		}, 0, 1, SECONDS);
+		}, 0, period, SECONDS);
 		
 		return q;
 	}
@@ -251,6 +412,12 @@ class ResourceToken {}
  */
 class NetworkCrawlerException extends Exception {
 	private static final long serialVersionUID = 1L;
+	
+	public NetworkCrawlerException() {}
+	
+	public NetworkCrawlerException(String message) {
+		super(message);
+	}
 }
 
 
@@ -259,7 +426,7 @@ class FollowingLimitExceedException extends NetworkCrawlerException {
 	
 	private long userId;
 	
-	public FollowingLimitExceedException(long userId) {
+	public FollowingLimitExceedException(long userId) {	
 		this.userId = userId;
 	}
 	
