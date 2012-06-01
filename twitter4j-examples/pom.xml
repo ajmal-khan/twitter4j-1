@@ -134,7 +134,7 @@
                 <configuration>
                     <encoding>UTF-8</encoding>
                     <source>6</source>
-                    <target>jsr14</target>
+                    <target>6</target>
                 </configuration>
                 <version>2.3.2</version>
             </plugin>

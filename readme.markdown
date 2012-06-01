@@ -7,6 +7,22 @@ Original twitter4j git repository: https://github.com/twitter/twitter4j
 Original twitter4j javadoc page: http://twitter4j.org/en/javadoc/index.html
 
 
+# How to Build
+
+## Build the package first
+
+Type:
+
+    make
+
+
+## Upate the library
+
+Type:
+
+    cd lib
+    ./update_library.sh
+
 # What's Modified
 
 ## StatusJSONImpl object
