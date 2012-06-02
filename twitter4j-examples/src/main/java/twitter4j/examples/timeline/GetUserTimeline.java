@@ -22,15 +22,11 @@ import twitter4j.Twitter;
 import twitter4j.TwitterException;
 import twitter4j.TwitterFactory;
 import twitter4j.examples.pyongjoo.CustomConfig;
+import twitter4j.examples.pyongjoo.CustomConfig2;
 
-import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
 import java.util.List;
 
 /**
@@ -45,7 +41,7 @@ public class GetUserTimeline {
 	 * @throws IOException 
 	 */
 	public static void main(String[] args) throws IOException {
-		TwitterFactory tf = new TwitterFactory(CustomConfig.getConfOnRandomlyDistributedKey());
+		TwitterFactory tf = new TwitterFactory(CustomConfig2.getConfOnRandomlyDistributedKey());
 		
 		// gets Twitter instance with default credentials
 		Twitter twitter = tf.getInstance();
@@ -58,10 +54,6 @@ public class GetUserTimeline {
 
 		FileWriter fstream = new FileWriter(filename, true);
 		BufferedWriter out = new BufferedWriter(fstream);
-		
-//		OutputStream file = new FileOutputStream(filename, true);
-//		OutputStream buffer = new BufferedOutputStream( file );
-//		ObjectOutput output = new ObjectOutputStream( buffer );
 
 		String user = "";
 		if (args.length >= 1) {
@@ -69,7 +61,7 @@ public class GetUserTimeline {
 		}
 //		out.write("#document starts with username: " + user + "\n");
 		
-		for (int i = 1; i <= 5; i++) {
+		for (int i = 1; i <= 1; i++) {
 			Paging pagingOption = new Paging(i, 200);
 
 			try {

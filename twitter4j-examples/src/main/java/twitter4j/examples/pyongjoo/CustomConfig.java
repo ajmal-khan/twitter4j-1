@@ -134,4 +134,9 @@ public class CustomConfig {
 		
 		return cb.build();
 	}
+	
+	public static void test() {
+		System.out.println(tempFile);
+	}
+	
 }
