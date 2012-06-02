@@ -12,7 +12,7 @@ import twitter4j.conf.Configuration;
 import twitter4j.conf.ConfigurationBuilder;
 
 public class CustomConfig {
-	private static String[][] tokens = {
+	final private static String[][] tokens = {
 		{
 			"9HwmRbVlPtFkit5ijoHw9A",
 			"LJFcWnOxhdScxo9DieKIp4007YpSYOZaLfyNvXT6vRQ",

@@ -26,7 +26,8 @@ import twitter4j.TwitterFactory;
 import twitter4j.examples.pyongjoo.CustomConfig;
 
 
-/** Crawl Twitter network from a set of seed users.
+/**
+ * Crawl Twitter network from a set of seed users.
  * 
  * Input Parameters when Running the main file
  * 
@@ -50,6 +51,12 @@ public class NetworkCrawler {
 	
 	final private List<Long> seedList;
 
+	/**
+	 * 
+	 * @param args[0] The first argument should be an output file where the crawled data will be recorded.
+	 * @throws NetworkCrawlerException
+	 * @throws IOException
+	 */
 	public static void main(String[] args) throws NetworkCrawlerException, IOException  {
 		if (args.length < 2) {
 			System.err.println("Usage: java NetworkCrawler [log file name] [seed file]");
@@ -114,7 +121,8 @@ public class NetworkCrawler {
 }
 
 
-/** Manage workers and tasks.
+/**
+ * Manage workers and tasks.
  * 
  * A task represents a node from which to expand to explore a part of the large network.
  * 
@@ -180,8 +188,9 @@ class Manager {
 	}
 	
 	
-	/** Add to the list to explore in the future.
-	 * 
+	/**
+	 * Add to the list to explore in the future.
+	 * <p>
 	 * This method performs the check if the node to be added has been visited
 	 * in the past, which is to prevent redundant explorations.
 	 * 
@@ -201,7 +210,9 @@ class Manager {
 	}
 	
 	
-	/** Start to manage the job, and stops if it reaches the depthLimit.
+	/**
+	 * Start to manage the job, and stops if it reaches the depthLimit.
+	 * 
 	 * @throws IOException 
 	 */
 	public void run() throws IOException {
